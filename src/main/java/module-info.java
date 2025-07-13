@@ -4,5 +4,5 @@ module org.example.sendov {
 
 
     opens org.example.sendov to javafx.fxml;
-    exports org.example.sendov;
+    exports org.example.sendov.view;
 }
