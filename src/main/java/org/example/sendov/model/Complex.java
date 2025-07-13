@@ -1,10 +1,15 @@
 package org.example.sendov.model;
 
+/**
+ * immutable
+ */
 public class Complex {
     private final double re;
     private final double im;
     private static int DECIMAL_MULT = 100;
     private static double ERROR = 1e-10;
+
+    public final static Complex ZERO = new Complex(0, 0);
 
     private static void checkValidArgument(double arg, String name) {
         if (arg == Double.POSITIVE_INFINITY || arg == Double.NEGATIVE_INFINITY) {
@@ -91,8 +96,8 @@ public class Complex {
 
     @Override
     public String toString() {
-        if (im > 0) return round(re) + " + i * " + round(im);
-        else if (im == 0) return round(re) + "";
+        if (isReal()) return round(re) + "";
+        else if (im > 0) return round(re) + " + i * " + round(im);
         else return round(re) + " - i * " + round(-im);
     }
 
@@ -107,5 +112,17 @@ public class Complex {
         if (error < 0) return false;
         ERROR = error;
         return true;
+    }
+
+    public boolean isReal() {
+        return Math.abs(im) <= ERROR;
+    }
+
+    public boolean isImag() {
+        return Math.abs(re) <= ERROR;
+    }
+
+    public boolean isZero() {
+        return isReal() && isImag();
     }
 }
