@@ -5,8 +5,8 @@ import java.util.List;
 
 /**
  * mutable (for the sake of less copying)
- * unary operations will modify this, binary operations are static (and creates new instance
- * of a polynomial)
+ * unary operations will modify this (if necessary in the context of the operation), binary operations are static
+ * (and creates new instance of a polynomial)
  */
 public class Polynomial {
     private int degree;
@@ -19,6 +19,13 @@ public class Polynomial {
 
     public Polynomial(List<Complex> coeffs) {
         this.coeffs = coeffs;
+        truncate();
+    }
+
+    public Polynomial(Complex leadCoeff, int degree) {
+        coeffs = new ArrayList<>(degree + 1);
+        for (int i = 0; i < degree; i++) coeffs.add(Complex.ZERO);
+        coeffs.add(leadCoeff);
         truncate();
     }
 
@@ -129,6 +136,10 @@ public class Polynomial {
         return Polynomial.subt(this, (Polynomial)other).isZero();
     }
 
+    /*
+    Although 0 can be shifted left math-wise to get another polynomial, I will treat 0 as any
+    nonzero constant, which can't be shifted left
+     */
     public boolean shift(int shiftBy) {
         if (shiftBy >= 0) {
             for (int i = 0; i < shiftBy; i++) {
@@ -137,15 +148,76 @@ public class Polynomial {
         } else {
             int count = 0;
             shiftBy *= -1;
-            while (count < shiftBy && coeffs.get(count).isZero()) count++;
+            while (coeffs.size() >= 2 && count < shiftBy && coeffs.get(count).isZero()) count++;
             if (count == shiftBy) {
                 coeffs = coeffs.subList(shiftBy, coeffs.size());
             } else {
                 return false;
             }
-
         }
         truncate();
         return true;
+    }
+
+    public static Polynomial mult(Polynomial a, Polynomial b) {
+        Polynomial rtn = new Polynomial("0");
+        for (int i = 0; i <= b.degree; i++) {
+            Polynomial temp = a.copy();
+            temp.scale(b.coeffs.get(i));
+            temp.shift(i);
+            rtn = Polynomial.add(rtn, temp);
+        }
+        return rtn;
+    }
+
+    /**
+     * I will take 0^0 = 1
+     * @param exponent
+     */
+    public void exp(int exponent) {
+        if (exponent < 0) throw new IllegalArgumentException("exponent cannot be negative");
+        List<Integer> bits = new ArrayList<>();
+        while (exponent > 0) {
+            bits.add(exponent & 1);
+            exponent >>= 1;
+        }
+        bits = bits.reversed();
+        Polynomial base = this;
+        Polynomial ans = new Polynomial("1");
+        for (int bit : bits) {
+            ans = Polynomial.mult(ans, ans);
+            if (bit == 1) ans = Polynomial.mult(ans, base);
+        }
+        coeffs = ans.coeffs;
+        degree = ans.degree;
+    }
+
+    public static DivisionResult divide(Polynomial a, Polynomial b) {
+        if (b.isZero()) throw new ZeroDivisionException("cannot divide by the zero polynomial");
+        Polynomial curr = a.copy();
+
+        // can be better
+        Polynomial quotient = new Polynomial("0");
+
+        int count = 0;
+        while (curr.degree() >= b.degree() && count++ <= 10) {
+            Polynomial temp = b.copy();
+            temp.shift(curr.degree() - b.degree());
+            Complex elim = Complex.divide(curr.coeffs.getLast(), b.coeffs.getLast());
+            temp.scale(elim);
+            quotient = Polynomial.add(quotient, new Polynomial(elim, curr.degree() - b.degree()));
+            curr = Polynomial.subt(curr, temp);
+        }
+        return new DivisionResult(quotient, curr);
+    }
+
+    public Complex eval(Complex x) {
+        Complex rtn = Complex.ZERO;
+        Complex power = new Complex(1, 0);
+        for (int i = 0; i <= degree(); i++) {
+            rtn = Complex.add(rtn, Complex.mult(power, coeffs.get(i)));
+            power = Complex.mult(power, x);
+        }
+        return rtn;
     }
 }
